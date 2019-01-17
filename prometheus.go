@@ -3,9 +3,9 @@ package statuspage
 import (
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"runtime"
 	"strings"
-	"io"
 	"time"
 	"unicode/utf8"
 
@@ -154,10 +154,16 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 							},
 						})
 					case metrics.MetricTypeGauge:
+						var value float64
+						if getFloater, ok := workerI.(interface{ GetFloat() float64 }); ok {
+							value = getFloater.GetFloat()
+						} else {
+							value = float64(workerI.Get())
+						}
 						gaugeMetrics[key] = append(gaugeMetrics[key], &prometheusModels.Metric{
 							Label: labels,
 							Gauge: &prometheusModels.Gauge{
-								Value: &[]float64{float64(workerI.Get())}[0],
+								Value: &value,
 							},
 						})
 					default:
