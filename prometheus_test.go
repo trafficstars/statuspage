@@ -8,7 +8,7 @@ import (
 
 	prometheusModels "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
-	"github.com/trafficstars/fastmetrics"
+	"github.com/trafficstars/metrics"
 )
 
 type testPrometheusEncoder struct {
@@ -27,7 +27,7 @@ func (e *testPrometheusEncoder) Encode(family *prometheusModels.MetricFamily) er
 }
 
 func TestEncodeMetricsPrometheus(t *testing.T) {
-	metrics.CreateOrGetWorkerCount(`test`, metrics.Tags{
+	metrics.Count(`test`, metrics.Tags{
 		`invalidUTF8String`: string([]byte{0xff, 0xfe, 0xfd}),
 		`hackyString`:       "dummyValue}\ninjectedMetric{",
 	})

@@ -14,7 +14,7 @@ import (
 	prometheusModels "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 
-	"github.com/trafficstars/fastmetrics"
+	"github.com/trafficstars/metrics"
 )
 
 const (
@@ -90,16 +90,15 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 				writeMetricsPrometheus(v, encoder, k+"_")
 			case *runtime.MemStats:
 				writeMetricsPrometheus(structs.Map(v), encoder, k+"_")
-			case []*metrics.Metric:
+			case []metrics.Metric:
 				countMetrics := map[string][]*prometheusModels.Metric{}
 				gaugeMetrics := map[string][]*prometheusModels.Metric{}
 				timingMetrics := map[string][]*prometheusModels.Metric{}
 
-				for _, metric := range v {
-					workerI := metric.GetWorker()
-					key := metric.GetName()
+				for _, metricI := range v {
+					key := metricI.GetName()
 					var labels []*prometheusModels.LabelPair
-					for k, v := range metric.GetTags() {
+					for k, v := range metricI.GetTags() {
 						value := metrics.TagValueToString(v)
 						if !utf8.ValidString(value) {
 							value = base64.StdEncoding.EncodeToString([]byte(value))
@@ -109,61 +108,61 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 							Value: &[]string{value}[0],
 						})
 					}
-					switch workerI.GetType() {
-					case metrics.MetricTypeTiming:
-						worker := workerI.(metrics.WorkerTiming)
-						values := worker.GetValuePointers()
+					switch metricI.GetType() {
+					case metrics.TypeTimingFlow, metrics.TypeTimingBuffered, metrics.TypeGaugeAggregativeFlow, metrics.TypeGaugeAggregativeBuffered:
+						values := metricI.(interface {
+							GetValuePointers() *metrics.AggregativeValues
+						}).GetValuePointers()
 
-						addTimingMetric := func(key string, v uint64) {
+						addTimingMetric := func(key string, v float64) {
 							timingMetrics[key] = append(timingMetrics[key], &prometheusModels.Metric{
 								Label: labels,
 								Gauge: &prometheusModels.Gauge{
-									Value: &[]float64{float64(v)}[0],
+									Value: &[]float64{v}[0],
 								},
 							})
 						}
 
-						considerValue := func(label string) func(data *metrics.TimingValue) {
-							return func(data *metrics.TimingValue) {
+						considerValue := func(label string) func(data *metrics.AggregativeValue) {
+							return func(data *metrics.AggregativeValue) {
 								if data.Count == 0 {
 									return
 								}
-								addTimingMetric(key+`_`+label+`_count`, data.Count)
-								addTimingMetric(key+`_`+label+`_min`, data.Min)
-								addTimingMetric(key+`_`+label+`_mid`, data.Mid)
-								addTimingMetric(key+`_`+label+`_avg`, data.Avg)
-								addTimingMetric(key+`_`+label+`_per99`, data.Per99)
-								addTimingMetric(key+`_`+label+`_max`, data.Max)
+								addTimingMetric(key+`_`+label+`_count`, float64(data.Count))
+								addTimingMetric(key+`_`+label+`_min`, data.Min.Get())
+								addTimingMetric(key+`_`+label+`_avg`, data.Avg.Get())
+								addTimingMetric(key+`_`+label+`_max`, data.Max.Get())
+								if data.AggregativeStatistics != nil {
+									percentiles := data.AggregativeStatistics.GetPercentiles([]float64{0.01, 0.1, 0.5, 0.9, 0.99})
+									addTimingMetric(key+`_`+label+`_per1`, *percentiles[0])
+									addTimingMetric(key+`_`+label+`_per10`, *percentiles[1])
+									addTimingMetric(key+`_`+label+`_per50`, *percentiles[2])
+									addTimingMetric(key+`_`+label+`_per90`, *percentiles[3])
+									addTimingMetric(key+`_`+label+`_per99`, *percentiles[4])
+								}
 							}
 						}
 
 						values.Last.LockDo(considerValue(`last`))
-						values.S1.LockDo(considerValue(`1s`))
-						values.S5.LockDo(considerValue(`5s`))
-						values.M1.LockDo(considerValue(`1m`))
-						values.M5.LockDo(considerValue(`5m`))
-						values.H1.LockDo(considerValue(`1h`))
-						values.H6.LockDo(considerValue(`6h`))
-						values.D1.LockDo(considerValue(`1d`))
+						values.ByPeriod[0].LockDo(considerValue(metrics.GetBaseAggregationPeriod().String()))
+						for idx, period := range metricI.(interface {
+							GetAggregationPeriods() []metrics.AggregationPeriod
+						}).GetAggregationPeriods() {
+							values.ByPeriod[idx].LockDo(considerValue(period.String()))
+						}
 						values.Total.LockDo(considerValue(`total`))
-					case metrics.MetricTypeCount:
+					case metrics.TypeCount:
 						countMetrics[key] = append(countMetrics[key], &prometheusModels.Metric{
 							Label: labels,
 							Counter: &prometheusModels.Counter{
-								Value: &[]float64{float64(workerI.Get())}[0],
+								Value: &[]float64{metricI.GetFloat64()}[0],
 							},
 						})
-					case metrics.MetricTypeGauge:
-						var value float64
-						if getFloater, ok := workerI.(interface{ GetFloat() float64 }); ok {
-							value = getFloater.GetFloat()
-						} else {
-							value = float64(workerI.Get())
-						}
+					case metrics.TypeGaugeFloat64, metrics.TypeGaugeInt64:
 						gaugeMetrics[key] = append(gaugeMetrics[key], &prometheusModels.Metric{
 							Label: labels,
 							Gauge: &prometheusModels.Gauge{
-								Value: &value,
+								Value: &[]float64{metricI.GetFloat64()}[0],
 							},
 						})
 					default:
