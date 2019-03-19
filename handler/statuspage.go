@@ -1,4 +1,4 @@
-package statuspage
+package handler
 
 import (
 	"bytes"
@@ -8,10 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/trafficstars/statuspage"
-)
-
-var (
-	customMetricsHooks = []func() map[string]interface{}{}
 )
 
 func StatusJSON(ctx echo.Context) error {
