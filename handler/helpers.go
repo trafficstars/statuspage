@@ -1,4 +1,4 @@
-package statuspage
+package handler
 
 import (
 	"fmt"
