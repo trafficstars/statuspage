@@ -144,10 +144,15 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 						}
 
 						values.Last.LockDo(considerValue(`last`))
-						values.ByPeriod[0].LockDo(considerValue(metrics.GetBaseAggregationPeriod().String()))
+						if len(values.ByPeriod) > 0 {
+							values.ByPeriod[0].LockDo(considerValue(metrics.GetBaseAggregationPeriod().String()))
+						}
 						for idx, period := range metricI.(interface {
 							GetAggregationPeriods() []metrics.AggregationPeriod
 						}).GetAggregationPeriods() {
+							if idx >= len(values.ByPeriod) {
+								break
+							}
 							values.ByPeriod[idx].LockDo(considerValue(period.String()))
 						}
 						values.Total.LockDo(considerValue(`total`))
