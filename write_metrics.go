@@ -197,10 +197,70 @@ func encodeMetrics(encoder encoder, prefix string, metrics map[string][]*prometh
 	}
 }
 
+func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.Metric) {
+	// A slice of registry metrics (likely received via `List` of "github.com/trafficstars/metrics")
+
+	countMetrics := map[string][]*prometheusModels.Metric{}
+	gaugeMetrics := map[string][]*prometheusModels.Metric{}
+	aggregativeMetrics := map[string][]*prometheusModels.Metric{}
+
+	// Collecting all the metrics from the slice to maps: countMetrics, gaugeMetrics and aggregativeMetrics
+
+	for _, metricI := range v {
+		key := metricI.GetName()
+
+		// Prepare labels (it's called "tags" in package "github.com/trafficstars/metrics")
+
+		var labels []*prometheusModels.LabelPair
+		for k, v := range metricI.GetTags() {
+			value := metrics.TagValueToString(v)
+			if !utf8.ValidString(value) {
+				value = base64.StdEncoding.EncodeToString([]byte(value))
+			}
+			labels = append(labels, &prometheusModels.LabelPair{
+				Name:  &[]string{k}[0],
+				Value: &[]string{value}[0],
+			})
+		}
+
+		// Detect registry metric type and add it to and appropriate map: countMetrics, gaugeMetrics or
+		// aggregativeMetrics
+
+		switch metricI.GetType() {
+		case metrics.TypeTimingFlow, metrics.TypeTimingBuffered, metrics.TypeGaugeAggregativeFlow, metrics.TypeGaugeAggregativeBuffered:
+			addRegistryAggregativeMetricToMap(key, metricI.(registryAggregativeMetric), labels, aggregativeMetrics)
+
+		case metrics.TypeCount:
+			countMetrics[key] = append(countMetrics[key], &prometheusModels.Metric{
+				Label: labels,
+				Counter: &prometheusModels.Counter{
+					Value: &[]float64{metricI.GetFloat64()}[0],
+				},
+			})
+		case metrics.TypeGaugeFloat64, metrics.TypeGaugeInt64:
+			gaugeMetrics[key] = append(gaugeMetrics[key], &prometheusModels.Metric{
+				Label: labels,
+				Gauge: &prometheusModels.Gauge{
+					Value: &[]float64{metricI.GetFloat64()}[0],
+				},
+			})
+		default:
+			logger.Error(errors.New("unknown metric type (registry case)"))
+			// TODO: do something here
+		}
+	}
+
+	// Writing all the collected metrics (in the maps) via the encoder
+
+	encodeMetrics(encoder, prefix, countMetrics, prometheusModels.MetricType_COUNTER)
+	encodeMetrics(encoder, prefix, gaugeMetrics, prometheusModels.MetricType_GAUGE)
+	encodeMetrics(encoder, prefix, aggregativeMetrics, prometheusModels.MetricType_GAUGE)
+}
+
 // writeMetricsPrometheus writes all the metrics listed in map "m" via encoder "encoder"
 //
 // "prefix" is used as a prefix for the metric label/key.
-func writeMetricsPrometheus(m map[string]interface{}, encoder encoder, prefix string) {
+func writeMetricsPrometheus(encoder encoder, prefix string, m map[string]interface{}) {
 	for k, vI := range m {
 		if registryMetric, ok := vI.(metrics.Metric); ok {
 			// The only way to work with registry metrics ("github.com/trafficstars/metrics") is pass them as a slice,
@@ -219,70 +279,14 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder encoder, prefix st
 		case int, int32, uint32, int64, uint64, float32, float64:
 			writeFloat64MetricPrometheus(encoder, prefix+k, v)
 
+		case []metrics.Metric:
+			writeRegistryMetricsPrometheus(encoder, prefix+k+"_", v)
+
 		case map[string]interface{}:
-			writeMetricsPrometheus(v, encoder, k+"_") // recursive walk in
+			writeMetricsPrometheus(encoder, prefix+k+"_", v) // recursive walk in
 
 		case *runtime.MemStats:
-			writeMetricsPrometheus(structs.Map(v), encoder, k+"_") // recursive walk in
-
-		case []metrics.Metric:
-			// A slice of registry metrics (likely received via `List` of "github.com/trafficstars/metrics")
-
-			countMetrics := map[string][]*prometheusModels.Metric{}
-			gaugeMetrics := map[string][]*prometheusModels.Metric{}
-			aggregativeMetrics := map[string][]*prometheusModels.Metric{}
-
-			// Collecting all the metrics from the slice to maps: countMetrics, gaugeMetrics and aggregativeMetrics
-
-			for _, metricI := range v {
-				key := metricI.GetName()
-
-				// Prepare labels (it's called "tags" in package "github.com/trafficstars/metrics")
-
-				var labels []*prometheusModels.LabelPair
-				for k, v := range metricI.GetTags() {
-					value := metrics.TagValueToString(v)
-					if !utf8.ValidString(value) {
-						value = base64.StdEncoding.EncodeToString([]byte(value))
-					}
-					labels = append(labels, &prometheusModels.LabelPair{
-						Name:  &[]string{k}[0],
-						Value: &[]string{value}[0],
-					})
-				}
-
-				// Detect registry metric type and add it to and appropriate map: countMetrics, gaugeMetrics or
-				// aggregativeMetrics
-
-				switch metricI.GetType() {
-				case metrics.TypeTimingFlow, metrics.TypeTimingBuffered, metrics.TypeGaugeAggregativeFlow, metrics.TypeGaugeAggregativeBuffered:
-					addRegistryAggregativeMetricToMap(key, metricI.(registryAggregativeMetric), labels, aggregativeMetrics)
-
-				case metrics.TypeCount:
-					countMetrics[key] = append(countMetrics[key], &prometheusModels.Metric{
-						Label: labels,
-						Counter: &prometheusModels.Counter{
-							Value: &[]float64{metricI.GetFloat64()}[0],
-						},
-					})
-				case metrics.TypeGaugeFloat64, metrics.TypeGaugeInt64:
-					gaugeMetrics[key] = append(gaugeMetrics[key], &prometheusModels.Metric{
-						Label: labels,
-						Gauge: &prometheusModels.Gauge{
-							Value: &[]float64{metricI.GetFloat64()}[0],
-						},
-					})
-				default:
-					logger.Error(errors.New("unknown metric type (registry case)"))
-					// TODO: do something here
-				}
-			}
-
-			// Writing all the collected metrics (in the maps) via the encoder
-
-			encodeMetrics(encoder, prefix+k, countMetrics, prometheusModels.MetricType_COUNTER)
-			encodeMetrics(encoder, prefix+k, gaugeMetrics, prometheusModels.MetricType_GAUGE)
-			encodeMetrics(encoder, prefix+k, aggregativeMetrics, prometheusModels.MetricType_GAUGE)
+			writeMetricsPrometheus(encoder, prefix+k+"_", structs.Map(v)) // recursive walk in
 
 		default:
 			logger.Error(errors.New("unknown metric type (simple case)"))
@@ -300,7 +304,7 @@ func WriteMetricsPrometheus(writer io.Writer) error {
 	metrics := getStatus()
 
 	// ... And write them via the encoder
-	writeMetricsPrometheus(metrics, prometheusEncoder, ``)
+	writeMetricsPrometheus(prometheusEncoder, ``, metrics)
 	return nil
 }
 

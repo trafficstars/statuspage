@@ -36,11 +36,11 @@ func TestEncodeMetricsPrometheus(t *testing.T) {
 
 	status := map[string]interface{}{`metrics`: metrics.List()}
 
-	writeMetricsPrometheus(status, &testPrometheusEncoder{t: t}, ``)
+	writeMetricsPrometheus(&testPrometheusEncoder{t: t}, ``, status)
 
 	buf := new(bytes.Buffer)
 	realPrometheusEncoder := expfmt.NewEncoder(buf, PrometheusFormat)
-	writeMetricsPrometheus(status, realPrometheusEncoder, ``)
+	writeMetricsPrometheus(realPrometheusEncoder, ``, status)
 	if len(strings.Split(string(buf.Bytes()), "\n")) != 3 {
 		t.Errorf("result: %v", string(buf.Bytes()))
 	}
