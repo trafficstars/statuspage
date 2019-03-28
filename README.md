@@ -14,7 +14,7 @@ Examples
 Generic case
 ------------
 
-```
+```go
 package main
 
 import (
@@ -46,7 +46,7 @@ func main() {
 }
 ```
 
-```
+```sh
 $ curl http://localhost:8000/
 Hello world! The answerInt == 1
 
@@ -66,7 +66,7 @@ Framework "echo"
 ----------------
 
 The same as above, but just use our handler: 
-```
+```go
 // import "github.com/trafficstars/statuspage/handler/echostatuspage"
 
 r := echo.New()
