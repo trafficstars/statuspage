@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	// PrometheusFormat is a constant that defines which prometheus format will be used
+	// see also: https://github.com/prometheus/common/blob/6fb6fce6f8b75884b92e1889c150403fc0872c5e/expfmt/expfmt.go#L27
 	PrometheusFormat = expfmt.FmtText
 )
 
@@ -114,7 +116,7 @@ type registryAggregativeMetric interface {
 	GetAggregationPeriods() []metrics.AggregationPeriod
 }
 
-// writeRegistryAggregativeMetric is just a helper function for writeMetricsPrometheus
+// writeRegistryAggregativeMetric is just a helper function for writeRegistryMetricsPrometheus
 //
 // writes an aggregative registry metric from package (see "github.com/trafficstars/metrics") via encoder
 //
@@ -184,7 +186,7 @@ func addRegistryAggregativeMetricToMap(
 	values.Total.LockDo(considerValue(`total`))
 }
 
-// encodeMetrics is just a helper function for writeMetricsPrometheus
+// encodeMetrics is just a helper function for writeRegistryMetricsPrometheus
 //
 // writes non-aggregative registry metrics (see "github.com/trafficstars/metrics") via encoder
 func encodeMetrics(encoder encoder, prefix string, metrics map[string][]*prometheusModels.Metric, metricType prometheusModels.MetricType) {
@@ -197,6 +199,9 @@ func encodeMetrics(encoder encoder, prefix string, metrics map[string][]*prometh
 	}
 }
 
+// writeRegistryMetricsPrometheus is just a helper function for writeMetricsPrometheus
+//
+// writes registry metrics (see "github.com/trafficstars/metrics") via encoder
 func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.Metric) {
 	// A slice of registry metrics (likely received via `List` of "github.com/trafficstars/metrics")
 
