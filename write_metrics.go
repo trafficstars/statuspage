@@ -82,7 +82,7 @@ func writeTimeMetricPrometheus(encoder encoder, k string, v time.Time) {
 		Name: &[]string{k}[0],
 		Type: &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 		Metric: []*prometheusModels.Metric{
-			&prometheusModels.Metric{
+			{
 				Gauge: &prometheusModels.Gauge{
 					Value: &[]float64{gocast.ToFloat64(v.Unix())}[0],
 				},
@@ -99,7 +99,7 @@ func writeFloat64MetricPrometheus(encoder encoder, k string, v interface{}) {
 		Name: &[]string{k}[0],
 		Type: &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 		Metric: []*prometheusModels.Metric{
-			&prometheusModels.Metric{
+			{
 				Gauge: &prometheusModels.Gauge{
 					Value: &[]float64{gocast.ToFloat64(v)}[0],
 				},
