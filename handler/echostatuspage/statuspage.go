@@ -1,4 +1,4 @@
-package handler
+package echostatuspage
 
 import (
 	"bytes"
@@ -10,16 +10,18 @@ import (
 	"github.com/trafficstars/statuspage"
 )
 
+// StatusJSON is a handler for framework "echo" to display all the metrics in JSON format
 func StatusJSON(ctx echo.Context) error {
 	buf := new(bytes.Buffer)
 	err := statuspage.WriteMetricsJSON(buf)
 	if err != nil {
 		logrus.Errorf(`cannot print the status page (JSON): %v`, err)
 	}
-	ctx.Response().Header().Set("Content-Type", `appliation/json`)
+	ctx.Response().Header().Set("Content-Type", `application/json`)
 	return ctx.String(http.StatusOK, string(buf.Bytes()))
 }
 
+// StatusPrometheus is a handler for framework "echo" to display all the metrics in Prometheus format
 func StatusPrometheus(ctx echo.Context) error {
 	buf := new(bytes.Buffer)
 	err := statuspage.WriteMetricsPrometheus(buf)

@@ -2,7 +2,7 @@ package statuspage
 
 var logger *loggerWrapper
 
-type Logger interface{
+type Logger interface {
 	Error(error)
 }
 

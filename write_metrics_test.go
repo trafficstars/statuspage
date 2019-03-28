@@ -27,6 +27,8 @@ func (e *testPrometheusEncoder) Encode(family *prometheusModels.MetricFamily) er
 }
 
 func TestEncodeMetricsPrometheus(t *testing.T) {
+	// Check if the format is correct
+
 	metrics.Count(`test`, metrics.Tags{
 		`invalidUTF8String`: string([]byte{0xff, 0xfe, 0xfd}),
 		`hackyString`:       "dummyValue}\ninjectedMetric{",
@@ -42,4 +44,6 @@ func TestEncodeMetricsPrometheus(t *testing.T) {
 	if len(strings.Split(string(buf.Bytes()), "\n")) != 3 {
 		t.Errorf("result: %v", string(buf.Bytes()))
 	}
+
+	// Check if keys are correct
 }
