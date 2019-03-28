@@ -63,7 +63,7 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 		} else {
 			switch v := vI.(type) {
 			case time.Time:
-				encoder.Encode(&prometheusModels.MetricFamily{
+				logger.IfError(encoder.Encode(&prometheusModels.MetricFamily{
 					Name: &[]string{prefix + k}[0],
 					Type: &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 					Metric: []*prometheusModels.Metric{
@@ -73,9 +73,9 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 							},
 						},
 					},
-				})
+				}))
 			case int, int32, uint32, int64, uint64, float32, float64:
-				encoder.Encode(&prometheusModels.MetricFamily{
+				logger.IfError(encoder.Encode(&prometheusModels.MetricFamily{
 					Name: &[]string{prefix + k}[0],
 					Type: &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 					Metric: []*prometheusModels.Metric{
@@ -85,7 +85,7 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 							},
 						},
 					},
-				})
+				}))
 			case map[string]interface{}:
 				writeMetricsPrometheus(v, encoder, k+"_")
 			case *runtime.MemStats:
@@ -132,14 +132,16 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 								addTimingMetric(key+`_`+label+`_min`, data.Min.Get())
 								addTimingMetric(key+`_`+label+`_avg`, data.Avg.Get())
 								addTimingMetric(key+`_`+label+`_max`, data.Max.Get())
-								if data.AggregativeStatistics != nil {
-									percentiles := data.AggregativeStatistics.GetPercentiles([]float64{0.01, 0.1, 0.5, 0.9, 0.99})
-									addTimingMetric(key+`_`+label+`_per1`, *percentiles[0])
-									addTimingMetric(key+`_`+label+`_per10`, *percentiles[1])
-									addTimingMetric(key+`_`+label+`_per50`, *percentiles[2])
-									addTimingMetric(key+`_`+label+`_per90`, *percentiles[3])
-									addTimingMetric(key+`_`+label+`_per99`, *percentiles[4])
+								aggregativeStatistics := data.AggregativeStatistics
+								if aggregativeStatistics == nil {
+									return
 								}
+								percentiles := aggregativeStatistics.GetPercentiles([]float64{0.01, 0.1, 0.5, 0.9, 0.99})
+								addTimingMetric(key+`_`+label+`_per1`, *percentiles[0])
+								addTimingMetric(key+`_`+label+`_per10`, *percentiles[1])
+								addTimingMetric(key+`_`+label+`_per50`, *percentiles[2])
+								addTimingMetric(key+`_`+label+`_per90`, *percentiles[3])
+								addTimingMetric(key+`_`+label+`_per99`, *percentiles[4])
 							}
 						}
 
@@ -176,27 +178,27 @@ func writeMetricsPrometheus(m map[string]interface{}, encoder interface {
 				}
 
 				for key, metrics := range countMetrics {
-					encoder.Encode(&prometheusModels.MetricFamily{
+					logger.IfError(encoder.Encode(&prometheusModels.MetricFamily{
 						Name:   &[]string{fixPrometheusKey(prefix + k + "_" + key)}[0],
 						Type:   &[]prometheusModels.MetricType{prometheusModels.MetricType_COUNTER}[0],
 						Metric: metrics,
-					})
+					}))
 				}
 
 				for key, metrics := range gaugeMetrics {
-					encoder.Encode(&prometheusModels.MetricFamily{
+					logger.IfError(encoder.Encode(&prometheusModels.MetricFamily{
 						Name:   &[]string{fixPrometheusKey(prefix + k + "_" + key)}[0],
 						Type:   &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 						Metric: metrics,
-					})
+					}))
 				}
 
 				for key, metrics := range timingMetrics {
-					encoder.Encode(&prometheusModels.MetricFamily{
+					logger.IfError(encoder.Encode(&prometheusModels.MetricFamily{
 						Name:   &[]string{fixPrometheusKey(prefix + k + "_" + key)}[0],
 						Type:   &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 						Metric: metrics,
-					})
+					}))
 				}
 			default:
 				// TODO: do something here
