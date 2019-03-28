@@ -1,6 +1,6 @@
 package statuspage
 
-var logger *loggerWrapper
+var logger = &loggerWrapper{}
 
 // Logger is an interface of a logger that could be set via function `SetLogger` as the logger of this package.
 // If there will be any errors then they will be written via the logger.
@@ -9,12 +9,12 @@ type Logger interface {
 }
 
 type loggerWrapper struct {
-	Logger
+	logger Logger
 }
 
 // SetLogger sets the logger to be used to report about errors
 func SetLogger(newLogger Logger) {
-	logger = &loggerWrapper{Logger: newLogger}
+	logger = &loggerWrapper{logger: newLogger}
 	return
 }
 
@@ -26,8 +26,19 @@ func (l *loggerWrapper) IfError(err error) {
 	if err == nil {
 		return
 	}
-	if l.Logger == nil {
+	if l.logger == nil {
 		return
 	}
-	l.Logger.Error(err)
+	l.logger.Error(err)
+}
+
+// Error prints the error "err" via the logger
+func (l *loggerWrapper) Error(err error) {
+	if l == nil {
+		return
+	}
+	if l.logger == nil {
+		return
+	}
+	l.logger.Error(err)
 }

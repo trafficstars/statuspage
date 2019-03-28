@@ -192,7 +192,7 @@ func addRegistryAggregativeMetricToMap(
 func encodeMetrics(encoder encoder, prefix string, metrics map[string][]*prometheusModels.Metric, metricType prometheusModels.MetricType) {
 	for key, subMetrics := range metrics {
 		logger.IfError(encoder.Encode(&prometheusModels.MetricFamily{
-			Name:   &[]string{fixPrometheusKey(prefix + "_" + key)}[0],
+			Name:   &[]string{fixPrometheusKey(prefix + key)}[0],
 			Type:   &[]prometheusModels.MetricType{metricType}[0],
 			Metric: subMetrics,
 		}))
@@ -318,7 +318,7 @@ func WriteMetricsJSON(writer io.Writer) error {
 	return json.NewEncoder(writer).Encode(getStatus())
 }
 
-// AddCustomMetricsHook add news hook that will be called everytime to collect additional metrics when function
+// AddCustomMetricsHook adds a new hook that will be called everytime to collect additional metrics when function
 // WriteMetricsPrometheus or WriteMetricsJSON is called.
 //
 // The hook should return map of "string to interface{}" where the "string" is a metric key and "interface{}" is the
