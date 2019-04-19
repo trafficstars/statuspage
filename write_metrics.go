@@ -232,7 +232,8 @@ func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.
 		// aggregativeMetrics
 
 		switch metricI.GetType() {
-		case metrics.TypeTimingFlow, metrics.TypeTimingBuffered, metrics.TypeGaugeAggregativeFlow, metrics.TypeGaugeAggregativeBuffered:
+		case metrics.TypeTimingFlow, metrics.TypeTimingBuffered, metrics.TypeTimingSimple,
+			metrics.TypeGaugeAggregativeFlow, metrics.TypeGaugeAggregativeBuffered, metrics.TypeGaugeAggregativeSimple:
 			addRegistryAggregativeMetricToMap(key, metricI.(registryAggregativeMetric), labels, aggregativeMetrics)
 
 		case metrics.TypeCount:
