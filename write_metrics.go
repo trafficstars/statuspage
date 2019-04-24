@@ -328,6 +328,15 @@ func writeMetricsPrometheus(encoder encoder, prefix string, m map[string]interfa
 		case []metrics.Metric:
 			writeRegistryMetricsPrometheus(encoder, prefix+k+"_", v)
 
+		case metrics.Metrics:
+			writeRegistryMetricsPrometheus(encoder, prefix+k+"_", v)
+
+		case *[]metrics.Metric:
+			writeRegistryMetricsPrometheus(encoder, prefix+k+"_", *v)
+
+		case *metrics.Metrics:
+			writeRegistryMetricsPrometheus(encoder, prefix+k+"_", *v)
+
 		case map[string]interface{}:
 			writeMetricsPrometheus(encoder, prefix+k+"_", v) // recursive walk in
 
