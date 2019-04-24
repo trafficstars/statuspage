@@ -76,6 +76,24 @@ type encoder interface {
 	Encode(*prometheusModels.MetricFamily) error
 }
 
+// getDefaultLabels returns metrics.GetDefaultTags() result as prometheus labels
+func getDefaultLabels() (labels []*prometheusModels.LabelPair) {
+	defaultTags := metrics.GetDefaultTags()
+	defaultTags.Each(func(k string, v interface{}) bool {
+		value := metrics.TagValueToString(v)
+		if !utf8.ValidString(value) {
+			value = base64.StdEncoding.EncodeToString([]byte(value))
+		}
+		labels = append(labels, &prometheusModels.LabelPair{
+			Name:  &[]string{k}[0],
+			Value: &[]string{value}[0],
+		})
+		return true
+	})
+
+	return
+}
+
 // writeTimeMetricPrometheus is just a helper function for writeMetricsPrometheus
 //
 // writes a time.Time metric via encoder
@@ -85,6 +103,7 @@ func writeTimeMetricPrometheus(encoder encoder, k string, v time.Time) {
 		Type: &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 		Metric: []*prometheusModels.Metric{
 			{
+				Label: getDefaultLabels(),
 				Gauge: &prometheusModels.Gauge{
 					Value: &[]float64{gocast.ToFloat64(v.Unix())}[0],
 				},
@@ -102,6 +121,7 @@ func writeFloat64MetricPrometheus(encoder encoder, k string, v interface{}) {
 		Type: &[]prometheusModels.MetricType{prometheusModels.MetricType_GAUGE}[0],
 		Metric: []*prometheusModels.Metric{
 			{
+				Label: getDefaultLabels(),
 				Gauge: &prometheusModels.Gauge{
 					Value: &[]float64{gocast.ToFloat64(v)}[0],
 				},
