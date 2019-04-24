@@ -157,6 +157,7 @@ func addRegistryAggregativeMetricToMap(
 			addAggregativeMetric(prefix+`_`+label+`_min`, data.Min.Get())
 			addAggregativeMetric(prefix+`_`+label+`_avg`, data.Avg.Get())
 			addAggregativeMetric(prefix+`_`+label+`_max`, data.Max.Get())
+			addAggregativeMetric(prefix+`_`+label+`_sum`, data.Sum.Get())
 			aggregativeStatistics := data.AggregativeStatistics
 			if aggregativeStatistics == nil {
 				return
@@ -261,7 +262,8 @@ func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.
 					Value: &[]float64{metricI.GetFloat64()}[0],
 				},
 			})
-		case metrics.TypeGaugeFloat64, metrics.TypeGaugeInt64:
+		case metrics.TypeGaugeFloat64, metrics.TypeGaugeInt64,
+			metrics.TypeGaugeFloat64Func, metrics.TypeGaugeInt64Func:
 			gaugeMetrics[key] = append(gaugeMetrics[key], &prometheusModels.Metric{
 				Label: labels,
 				Gauge: &prometheusModels.Gauge{
