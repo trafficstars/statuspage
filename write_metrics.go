@@ -49,6 +49,8 @@ func getStatus() map[string]interface{} {
 	result[`num_cpu`] = runtime.NumCPU()
 	result[`golang_version`] = runtime.Version()
 
+	result[`default_tags`] = metrics.GetDefaultTags().String()
+
 	// Getting custom metrics (see `AddCustomMetricsHook()`)
 	for _, hook := range customMetricsHooks {
 		for k, v := range hook() {
@@ -209,6 +211,8 @@ func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.
 	gaugeMetrics := map[string][]*prometheusModels.Metric{}
 	aggregativeMetrics := map[string][]*prometheusModels.Metric{}
 
+	defaultTags := metrics.GetDefaultTags()
+
 	// Collecting all the metrics from the slice to maps: countMetrics, gaugeMetrics and aggregativeMetrics
 
 	for _, metricI := range v {
@@ -217,7 +221,8 @@ func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.
 		// Prepare labels (it's called "tags" in package "github.com/trafficstars/metrics")
 
 		var labels []*prometheusModels.LabelPair
-		for k, v := range metricI.GetTags() {
+		tags := metricI.GetTags()
+		tags.Each(func(k string, v interface{}) bool {
 			value := metrics.TagValueToString(v)
 			if !utf8.ValidString(value) {
 				value = base64.StdEncoding.EncodeToString([]byte(value))
@@ -226,7 +231,20 @@ func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.
 				Name:  &[]string{k}[0],
 				Value: &[]string{value}[0],
 			})
-		}
+			return true
+		})
+
+		defaultTags.Each(func(k string, v interface{}) bool {
+			value := metrics.TagValueToString(v)
+			if !utf8.ValidString(value) {
+				value = base64.StdEncoding.EncodeToString([]byte(value))
+			}
+			labels = append(labels, &prometheusModels.LabelPair{
+				Name:  &[]string{k}[0],
+				Value: &[]string{value}[0],
+			})
+			return true
+		})
 
 		// Detect registry metric type and add it to and appropriate map: countMetrics, gaugeMetrics or
 		// aggregativeMetrics
