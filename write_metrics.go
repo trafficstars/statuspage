@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -256,6 +257,11 @@ func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.
 		})
 
 		defaultTags.Each(func(k string, v interface{}) bool {
+			for _, label := range labels {
+				if *label.Name == k {
+					return true
+				}
+			}
 			value := metrics.TagValueToString(v)
 			if !utf8.ValidString(value) {
 				value = base64.StdEncoding.EncodeToString([]byte(value))
@@ -265,6 +271,10 @@ func writeRegistryMetricsPrometheus(encoder encoder, prefix string, v []metrics.
 				Value: &[]string{value}[0],
 			})
 			return true
+		})
+
+		sort.Slice(labels, func(i, j int) bool {
+			return *labels[i].Name < *labels[j].Name
 		})
 
 		// Detect registry metric type and add it to and appropriate map: countMetrics, gaugeMetrics or
