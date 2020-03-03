@@ -13,6 +13,7 @@ import (
 
 	"github.com/demdxx/gocast"
 	"github.com/fatih/structs"
+	"github.com/modern-go/reflect2"
 	prometheusModels "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 
@@ -180,7 +181,7 @@ func addRegistryAggregativeMetricToMap(
 			addAggregativeMetric(prefix+`_`+label+`_max`, data.Max.Get())
 			addAggregativeMetric(prefix+`_`+label+`_sum`, data.Sum.Get())
 			aggregativeStatistics := data.AggregativeStatistics
-			if aggregativeStatistics == nil {
+			if reflect2.IsNil(aggregativeStatistics) {
 				return
 			}
 			percentiles := aggregativeStatistics.GetPercentiles([]float64{0.01, 0.1, 0.5, 0.9, 0.99})
