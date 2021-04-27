@@ -1,9 +1,8 @@
 module github.com/trafficstars/statuspage
 
-go 1.13
+go 1.16
 
 require (
-	github.com/OneOfOne/xxhash v1.2.7 // indirect
 	github.com/demdxx/gocast v0.0.0-20160708134729-106586117e3c
 	github.com/fatih/structs v1.1.0
 	github.com/labstack/echo v2.2.1-0.20161115162638-bc173df6ba59+incompatible
@@ -12,8 +11,6 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.9.1
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.5.1
-	github.com/trafficstars/metrics v0.0.0-20190723135603-7e1164875c3b
-	github.com/xaionaro-go/atomicmap v0.0.0-20190720091258-77e7f2aaf663 // indirect
-	github.com/xaionaro-go/spinlock v0.0.0-20190309154744-55278e21e817 // indirect
+	github.com/stretchr/testify v1.7.0
+	github.com/trafficstars/metrics v0.0.0-20210427151006-0250d8a27518
 )
