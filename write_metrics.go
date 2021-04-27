@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"runtime"
 	"sort"
@@ -175,21 +176,23 @@ func addRegistryAggregativeMetricToMap(
 			if data.Count == 0 {
 				return
 			}
-			addAggregativeMetric(prefix+`_`+label+`_count`, float64(data.Count))
+			addAggregativeMetric(prefix+`_`+label+`_count`, float64(data.Count.Get()))
 			addAggregativeMetric(prefix+`_`+label+`_min`, data.Min.Get())
 			addAggregativeMetric(prefix+`_`+label+`_avg`, data.Avg.Get())
 			addAggregativeMetric(prefix+`_`+label+`_max`, data.Max.Get())
 			addAggregativeMetric(prefix+`_`+label+`_sum`, data.Sum.Get())
+
 			aggregativeStatistics := data.AggregativeStatistics
 			if reflect2.IsNil(aggregativeStatistics) {
 				return
 			}
-			percentiles := aggregativeStatistics.GetPercentiles([]float64{0.01, 0.1, 0.5, 0.9, 0.99})
-			addAggregativeMetric(prefix+`_`+label+`_per1`, *percentiles[0])
-			addAggregativeMetric(prefix+`_`+label+`_per10`, *percentiles[1])
-			addAggregativeMetric(prefix+`_`+label+`_per50`, *percentiles[2])
-			addAggregativeMetric(prefix+`_`+label+`_per90`, *percentiles[3])
-			addAggregativeMetric(prefix+`_`+label+`_per99`, *percentiles[4])
+
+			percentiles, values := aggregativeStatistics.GetDefaultPercentiles()
+			for idx, p := range percentiles {
+				v := values[idx]
+				postfix := fmt.Sprintf("_per%d", int(p*100))
+				addAggregativeMetric(prefix+`_`+label+postfix, v)
+			}
 		}
 	}
 
@@ -197,18 +200,22 @@ func addRegistryAggregativeMetricToMap(
 	//
 	// Aggregation period "last" is the current instance value (without aggregation, just the last value).
 
-	values.Last.LockDo(considerValue(`last`))
-	if len(values.ByPeriod) > 0 {
-		values.ByPeriod[0].LockDo(considerValue(metrics.GetBaseAggregationPeriod().String()))
+	values.Last().LockDo(considerValue("last"))
+
+	if values.ByPeriod(0) == nil {
+		values.ByPeriod(0).LockDo(considerValue(metrics.GetBaseAggregationPeriod().String()))
 	}
+
 	for idx, period := range metric.GetAggregationPeriods() {
-		byPeriod := values.ByPeriod
-		if idx >= len(byPeriod) {
+		byPeriod := values.ByPeriod(idx)
+		if byPeriod == nil {
 			break
 		}
-		byPeriod[idx].LockDo(considerValue(period.String()))
+
+		byPeriod.LockDo(considerValue(period.String()))
 	}
-	values.Total.LockDo(considerValue(`total`))
+
+	values.Total().LockDo(considerValue("total"))
 }
 
 // encodeMetrics is just a helper function for writeRegistryMetricsPrometheus
